@@ -1,0 +1,105 @@
+{
+  "topic": "Din",
+  "questions": [
+    {
+      "q": "Din nedir?",
+      "o": [
+        "Toplumsal bir kurum",
+        "İnsanın kendini gerçekleştirme yolu",
+        "İnanç sistemleri",
+        "Tüm yukarıdakiler"
+      ],
+      "a": 3
+    },
+    {
+      "q": "Dinlerin ortak özellikleri nelerdir?",
+      "o": [
+        "İnanç, topluluk, lider",
+        "İnanç, ibadet, ahlak",
+        "İbadet, ahlak, topluluk",
+        "Tüm yukarıdakiler"
+      ],
+      "a": 1
+    },
+    {
+      "q": "Dinler tarihi alanında yapılan çalışmalara ne ad verilir?",
+      "o": [
+        "Din tarihçesi",
+        "Din felsefesi",
+        "Din sosyolojisi",
+        "Din psikolojisi"
+      ],
+      "a": 0
+    },
+    {
+      "q": "Ahlak kavramı en çok hangi alanla ilişkilidir?",
+      "o": [
+        "Davranış ve değerler",
+        "Sadece ibadetler",
+        "Sadece hukuk kuralları",
+        "Sadece gelenekler"
+      ],
+      "a": 0
+    },
+    {
+      "q": "İbadetlerin temel amaçlarından biri aşağıdakilerden hangisidir?",
+      "o": [
+        "Toplumsal gösteriş",
+        "Maddi kazanç",
+        "Allah'a kulluk ve manevi gelişim",
+        "Sadece alışkanlık"
+      ],
+      "a": 2
+    },
+    {
+      "q": "Dinî bayramların toplumsal katkısı nedir?",
+      "o": [
+        "Dayanışma ve birlik sağlar",
+        "Sadece tatil oluşturur",
+        "Ekonomiyi durdurur",
+        "Bireyi yalnızlaştırır"
+      ],
+      "a": 0
+    },
+    {
+      "q": "İnanç nedir?",
+      "o": [
+        "Bir şeye gönülden bağlanma ve kabul",
+        "Sadece görmek",
+        "Sadece duymak",
+        "Sadece ezberlemek"
+      ],
+      "a": 0
+    },
+    {
+      "q": "Din öğretiminin amaçlarından biri nedir?",
+      "o": [
+        "Bireyin manevi gelişimine katkı sağlamak",
+        "Sadece sınav kazandırmak",
+        "Sadece ezber yaptırmak",
+        "Boş zaman geçirmek"
+      ],
+      "a": 0
+    },
+    {
+      "q": "Hoşgörü hangi değerle en yakından ilişkilidir?",
+      "o": [
+        "Saygı",
+        "Öfke",
+        "İnat",
+        "Kıskançlık"
+      ],
+      "a": 0
+    },
+    {
+      "q": "Dinî kurallar bireye ne kazandırabilir?",
+      "o": [
+        "Sorumluluk bilinci",
+        "Düzensizlik",
+        "İlgisizlik",
+        "Kararsızlık"
+      ],
+      "a": 0
+    }
+  ]
+}
