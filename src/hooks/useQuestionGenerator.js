@@ -1,31 +1,174 @@
 import { useCallback, useState } from 'react';
 
-function extractJsonArray(rawText = '') {
-  const cleaned = String(rawText || '')
+function removeCodeFences(rawText = '') {
+  return String(rawText || '')
     .replace(/```json/gi, '')
     .replace(/```/g, '')
     .trim();
+}
 
-  const directArrayMatch = cleaned.match(/\[[\s\S]*\]/);
-  if (directArrayMatch) {
-    return JSON.parse(directArrayMatch[0]);
+function findBalancedJsonSlice(source = '', openChar = '[', closeChar = ']') {
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === openChar) {
+      if (depth === 0) start = i;
+      depth += 1;
+      continue;
+    }
+
+    if (char === closeChar && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        return source.slice(start, i + 1);
+      }
+    }
   }
 
-  const directObjectMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (directObjectMatch) {
-    const parsedObject = JSON.parse(directObjectMatch[0]);
-    if (Array.isArray(parsedObject)) return parsedObject;
-    if (Array.isArray(parsedObject.questions)) return parsedObject.questions;
-    if (Array.isArray(parsedObject.items)) return parsedObject.items;
+  return '';
+}
+
+function escapeRawLineBreaksInStrings(source = '') {
+  let result = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i];
+
+    if (inString) {
+      if (escaped) {
+        result += char;
+        escaped = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        result += char;
+        escaped = true;
+        continue;
+      }
+
+      if (char === '"') {
+        result += char;
+        inString = false;
+        continue;
+      }
+
+      if (char === '\n') {
+        result += '\\n';
+        continue;
+      }
+
+      if (char === '\r') {
+        result += '\\r';
+        continue;
+      }
+    } else if (char === '"') {
+      inString = true;
+    }
+
+    result += char;
   }
 
-  throw new Error('Groq geçerli JSON soru listesi döndürmedi.');
+  return result;
+}
+
+function repairJsonText(source = '') {
+  return escapeRawLineBreaksInStrings(String(source || ''))
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/,\s*([}\]])/g, '$1')
+    .trim();
+}
+
+function tryParseQuestionPayload(candidate = '') {
+  const attempts = [String(candidate || ''), repairJsonText(candidate)];
+
+  for (const current of attempts) {
+    if (!current) continue;
+    try {
+      const parsed = JSON.parse(current);
+      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed?.questions)) return parsed.questions;
+      if (Array.isArray(parsed?.items)) return parsed.items;
+    } catch {
+      // keep trying
+    }
+  }
+
+  return null;
+}
+
+function extractJsonArray(rawText = '') {
+  const cleaned = removeCodeFences(rawText);
+  const candidates = [
+    findBalancedJsonSlice(cleaned, '[', ']'),
+    findBalancedJsonSlice(cleaned, '{', '}'),
+    cleaned.match(/\[[\s\S]*\]/)?.[0] || '',
+    cleaned.match(/\{[\s\S]*\}/)?.[0] || '',
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const parsed = tryParseQuestionPayload(candidate);
+    if (parsed) return parsed;
+  }
+
+  throw new Error('Groq geçerli JSON soru listesi döndürmedi. Lütfen tekrar dene.');
 }
 
 function coerceQuestionCount(rawValue) {
   const parsed = Number.parseInt(String(rawValue ?? '').trim(), 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return 10;
   return parsed;
+}
+
+async function requestGroqQuestions({ groqKey, groqModel, systemPrompt, userPrompt }) {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${groqKey}`,
+    },
+    body: JSON.stringify({
+      model: groqModel,
+      temperature: 0.2,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+    }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const apiMessage = data?.error?.message || data?.message || `Groq API bağlantı hatası (${res.status}).`;
+    throw new Error(apiMessage);
+  }
+
+  return data?.choices?.[0]?.message?.content || '';
 }
 
 export function useQuestionGenerator({ topic, setTopic, normalizeQuestion, notifyError, onQuestionsReady, onBeforeGenerate, onAfterGenerate, onSuccess, defaultQuestionCount = '' }) {
@@ -54,47 +197,43 @@ export function useQuestionGenerator({ topic, setTopic, normalizeQuestion, notif
 
     const systemPrompt = [
       'Sen bir öğretmen yardımcısısın.',
-      'Yalnızca geçerli JSON döndür.',
-      'Üst açıklama, markdown, kod bloğu veya ekstra metin ekleme.',
-      'Çıktı bir JSON dizisi olsun.',
+      'Sadece geçerli JSON döndür.',
+      'Üst açıklama, markdown, kod bloğu, not, ön söz veya son söz ekleme.',
+      'Çıktı tek başına bir JSON dizisi olsun.',
       'Her öğe şu alanlara sahip olsun: q, o, a, hint, explanation, topicTag.',
       'o alanı tam 4 seçenek içersin, a alanı 0 ile 3 arasında sayı olsun.',
+      'Tüm string alanlarda satır sonu karakteri kullanma.',
       'Türkçe yaz.'
     ].join(' ');
 
-    const userPrompt = `${targetTopic} konusunda ${targetCount} soruluk çoktan seçmeli test üret. Zorluk dengeli olsun. Tam olarak bu şemaya uy: [{"q":"Soru","o":["A","B","C","D"],"a":0,"hint":"kısa ipucu","explanation":"öğretici açıklama","topicTag":"alt konu"}]`;
+    const basePrompt = `${targetTopic} konusunda ${targetCount} soruluk çoktan seçmeli test üret. Zorluk dengeli olsun. Tam olarak bu şemaya uy: [{"q":"Soru","o":["A","B","C","D"],"a":0,"hint":"kısa ipucu","explanation":"öğretici açıklama","topicTag":"alt konu"}]`;
 
     try {
       if (!groqKey || groqKey.includes('BURAYA_GROQ_API_KEY_YAZ')) {
         throw new Error('.env içindeki VITE_GROQ_API_KEY değeri eksik veya örnek değer olarak kalmış. Anahtarı yapıştırıp dev sunucuyu yeniden başlat.');
       }
 
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${groqKey}`,
-        },
-        body: JSON.stringify({
-          model: groqModel,
-          temperature: 0.5,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-        }),
+      let rawText = await requestGroqQuestions({
+        groqKey,
+        groqModel,
+        systemPrompt,
+        userPrompt: `${basePrompt} Sadece JSON döndür.`,
       });
 
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        const apiMessage = data?.error?.message || data?.message || `Groq API bağlantı hatası (${res.status}).`;
-        throw new Error(apiMessage);
+      let parsedQuestions;
+      try {
+        parsedQuestions = extractJsonArray(rawText);
+      } catch {
+        rawText = await requestGroqQuestions({
+          groqKey,
+          groqModel,
+          systemPrompt,
+          userPrompt: `${basePrompt} Önceki yanıt bozuk JSON üretmiş olabilir. Bu kez kesinlikle sadece geçerli JSON dizisi döndür. String alanlarda satır sonu kullanma, sonda virgül bırakma, açıklama veya markdown ekleme.`,
+        });
+        parsedQuestions = extractJsonArray(rawText);
       }
 
-      const rawText = data?.choices?.[0]?.message?.content || '';
-      const parsedQuestions = extractJsonArray(rawText).map(normalizeQuestion).filter(Boolean);
-      const exactQuestions = parsedQuestions.slice(0, targetCount);
+      const exactQuestions = parsedQuestions.map(normalizeQuestion).filter(Boolean).slice(0, targetCount);
 
       if (!exactQuestions.length) {
         throw new Error('Soru üretildi ama liste boş geldi. Başka bir konu deneyebilirsin.');
