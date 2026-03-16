@@ -1,0 +1,11 @@
+1) Bu klasorde .env dosyasini ac
+2) VITE_GROQ_API_KEY=BURAYA_GROQ_API_KEY_YAZ kismina kendi Groq API key'ini yapistir
+3) Terminalde su komutlari calistir:
+   npm install
+   npm run dev
+
+Windows icin cift tik:
+- BASLAT.bat
+
+SCORM paket icin:
+- npm run build:scorm

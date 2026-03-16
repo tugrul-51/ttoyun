@@ -1,0 +1,14 @@
+GitHub Pages kurulum özeti
+
+1) Bu projede .env dosyasını repo'ya yükleme.
+2) GitHub repo > Settings > Secrets and variables > Actions bölümüne şu secret'ları ekle:
+   - VITE_GROQ_API_KEY
+   - VITE_GROQ_MODEL
+   - gerekiyorsa diğer VITE_CLOUD_* secret'ları
+3) Settings > Pages > Source = GitHub Actions
+4) Kodları repo'ya yükle ve Actions sekmesinde deploy'un bitmesini bekle.
+
+Notlar:
+- Bu pakette node_modules, dist ve .env çıkarıldı.
+- Logo GitHub Pages altında düzgün görünmesi için göreli yol ile düzeltildi.
+- Mobil görünüm desktop sürümü bozmadan sıkılaştırıldı.
